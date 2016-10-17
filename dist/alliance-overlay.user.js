@@ -3,7 +3,7 @@
 // ==UserScript==
 // @name         Screeps alliance overlay
 // @namespace    https://screeps.com/
-// @version      0.1
+// @version      0.2
 // @author       James Cook
 // @include      https://screeps.com/a/
 // @run-at       document-start
@@ -14,6 +14,32 @@
 // @connect      www.leagueofautomatednations.com
 // ==/UserScript==
 
+// Keep this in sync with http://www.leagueofautomatednations.com/static/js/ScreepsMap.js
+// Could just require it, but that's a lot of other baggage
+const DEFAULT_COLORS = [
+    '#FFFF00',
+    '#63f0e5',
+    '#00FF00',
+    '#C055DD',
+    '#FF66AA',
+    '#D00000',
+    '#FF8500',
+    '#0055DD',
+    '#54D579',
+    '#FF00FF',
+    '#FD2222',
+    '#FFA500',
+    '#CCFF88',
+    '#0088AA',
+    '#00EE88',
+    '#BB00BB',
+    '#FF33EE',
+    '#FF0000',
+    '#FFCC44',
+    '#DDA0DD',
+    '#54D579',
+];
+
 const loanBaseUrl = "http://www.leagueofautomatednations.com";
 
 let allianceData;
@@ -23,6 +49,11 @@ function getAllianceLogo(allianceKey) {
     if (data) {
         return loanBaseUrl + "/obj/" + data.logo;
     }
+}
+
+function getAllianceColor(allianceKey) {
+    let keys = Object.keys(allianceData);
+    return DEFAULT_COLORS[keys.indexOf(allianceKey)];
 }
 
 // query for alliance data from the LOAN site
@@ -69,7 +100,8 @@ function exposeAllianceDataForAngular() {
     });
 
     for (let allianceKey in allianceData) {
-        addStyle(".alliance-" + allianceKey + " { background-image: url('" + getAllianceLogo(allianceKey) + "') }");
+        addStyle(".alliance-" + allianceKey + " { background-color: " + getAllianceColor(allianceKey) + " }");
+        addStyle(".alliance-logo-3.alliance-" + allianceKey + " { background-image: url('" + getAllianceLogo(allianceKey) + "') }");
     }
 }
 
@@ -167,21 +199,42 @@ function recalculateAllianceOverlay() {
     let mapContainerElem = angular.element(".map-container");
     let scope = mapContainerElem.scope();
     let worldMap = scope.WorldMap;
-    if (!worldMap.displayOptions.alliances) return;
+    if (!worldMap.displayOptions.alliances || !worldMap.allianceData) return;
+
+    function drawRoomAllianceOverlay(roomName, left, top) {
+        let roomDiv = $('<div class="alliance-logo" id="' + roomName + '"></div>');
+        let roomStats = worldMap.roomStats[roomName];
+        if (roomStats && roomStats.own) {
+            let userName = worldMap.roomUsers[roomStats.own.user].username;
+            let allianceKey = worldMap.userAlliance[userName];
+            if (allianceKey) {
+                $(roomDiv).addClass('alliance-' + allianceKey);
+
+                $(roomDiv).removeClass("alliance-logo-1 alliance-logo-2 alliance-logo-3");
+                $(roomDiv).css('left', left);
+                $(roomDiv).css('top', top);
+                $(roomDiv).addClass("alliance-logo-" + worldMap.zoom);
+
+                $(mapContainerElem).append(roomDiv);
+            }
+        }
+    }
 
     let $location = mapContainerElem.injector().get("$location");
     console.log("Recalculating alliance overlay");
     if ($location.search().pos) {
-        let roomSize;
-        let roomsPerSector;
+        let roomPixels;
+        let roomsPerSectorEdge;
         switch (worldMap.zoom) {
-            case 1: { roomSize = 20;  roomsPerSector = 10; break; }
-            case 2: { roomSize = 50;  roomsPerSector =  4; break; }
-            case 3: { roomSize = 150; roomsPerSector =  1; break; }
+            case 1: { roomPixels = 20;  roomsPerSectorEdge = 10; break; }
+            case 2: { roomPixels = 50;  roomsPerSectorEdge =  4; break; }
+            case 3: { roomPixels = 150; roomsPerSectorEdge =  1; break; }
         }
 
         let posStr = $location.search().pos;
         if (!posStr) return;
+
+        //if (worldMap.zoom !== 3) return; // Alliance images are pretty ugly at high zoom.
 
         for (var u = 0; u < worldMap.sectors.length; u++) {
             let sector = worldMap.sectors[u];
@@ -190,27 +243,18 @@ function recalculateAllianceOverlay() {
             if (sector.rooms) {
                 // high zoom, render a bunch of rooms
                 let rooms = sector.rooms.split(",");
-                for (let index in rooms) {
-                    let roomName = rooms[index];
+                for (let x = 0; x < roomsPerSectorEdge; x++) {
+                    for (let y = 0; y < roomsPerSectorEdge; y++) {
+                        let roomName = rooms[x * roomsPerSectorEdge + y];
+                        drawRoomAllianceOverlay(
+                            roomName,
+                            sector.left + x * roomPixels,
+                            sector.top + y * roomPixels);
+                    }
                 }
             } else {
                 // we're at zoom level 3, only render one room
-                let left = sector.left;
-                let top = sector.top;
-                let roomDiv = $('<div class="alliance-logo" id="' + sector.name + '"></div>');
-                let roomStats = worldMap.roomStats[sector.name];
-                if (roomStats && roomStats.own) {
-                    let userName = worldMap.roomUsers[roomStats.own.user].username;
-                    let allianceKey = worldMap.userAlliance[userName];
-                    $(roomDiv).addClass('alliance-' + allianceKey);
-                }
-
-                $(roomDiv).removeClass("alliance-logo-1 alliance-logo-2 alliance-logo-3");
-                $(roomDiv).css('left', sector.left);
-                $(roomDiv).css('top', sector.top);
-                $(roomDiv).addClass("alliance-logo-" + worldMap.zoom);
-
-                $(mapContainerElem).append(roomDiv);
+                drawRoomAllianceOverlay(sector.name, sector.left, sector.top);
             }
         }
     }
@@ -219,10 +263,10 @@ function recalculateAllianceOverlay() {
 let pendingRedraws = 0;
 function addSectorAllianceOverlay() {
     addStyle("\
-        .alliance-logo-1 { width: 4px; height: 4px; background-size: 4px 4px; }\
-        .alliance-logo-2 { width: 12.5px; height: 12.5px; background-size: 12.5px 12.5px; }\
-        .alliance-logo-3 { width: 50px; height: 50px; background-size: 50px 50px; }\
-        .alliance-logo { position: absolute; z-index: 2; opacity: 0.8 }\
+        .alliance-logo { position: absolute; z-index: 2; opacity: 0.4 }\
+        .alliance-logo-1 { width: 20px; height: 20px; }\
+        .alliance-logo-2 { width: 50px; height: 50px; }\
+        .alliance-logo-3 { width: 50px; height: 50px; background-size: 50px 50px; opacity: 0.8 }\
     ");
 
     let mapContainerElem = angular.element(".map-container");
@@ -240,7 +284,7 @@ function addSectorAllianceOverlay() {
             if (pendingRedraws === 0) {
                 recalculateAllianceOverlay();
             }
-        }, 100);
+        }, 500);
     }
     scope.$on("mapSectorsRecalced", deferRecalculation);
     scope.$on("mapStatsUpdated", deferRecalculation);
