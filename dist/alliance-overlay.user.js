@@ -5,11 +5,12 @@
 // @namespace    https://screeps.com/
 // @version      0.1
 // @author       James Cook
-// @match        https://screeps.com/a/
-// @run-at       document-ready
+// @include      https://screeps.com/a/
+// @run-at       document-start
 // @downloadUrl  https://raw.githubusercontent.com/LeagueOfAutomatedNations/loan-browser-ext/master/dist/alliance-overlay.user.js
 // @grant        GM_xmlhttpRequest
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js
+// @require      https://screeps.com/a/vendor/angular/angular.js?bust=1476348151333%22
 // @connect      www.leagueofautomatednations.com
 // ==/UserScript==
 
@@ -26,6 +27,11 @@ function getAllianceLogo(allianceKey) {
 
 // query for alliance data from the LOAN site
 function ensureAllianceData(callback) {
+    if (allianceData) {
+        if (callback) callback();
+        return;
+    }
+
     GM_xmlhttpRequest({
         method: "GET",
         url: (loanBaseUrl + "/alliances.js"),
@@ -58,7 +64,13 @@ function exposeAllianceDataForAngular() {
 
         worldMap.allianceData = allianceData;
         worldMap.userAlliance = userAlliance;
+
+        recalculateAllianceOverlay();
     });
+
+    for (let allianceKey in allianceData) {
+        addStyle(".alliance-" + allianceKey + " { background-image: url('" + getAllianceLogo(allianceKey) + "') }");
+    }
 }
 
 // inject a new CSS style
@@ -93,6 +105,8 @@ function bindAllianceSetting() {
 
         if (worldMap.displayOptions.alliances && !worldMap.userAlliances) {
             ensureAllianceData(exposeAllianceDataForAngular);
+        } else {
+            $('.alliance-logo').remove();
         }
     };
 
@@ -108,6 +122,7 @@ function bindAllianceSetting() {
 
     if (alliancesEnabled) {
         ensureAllianceData(exposeAllianceDataForAngular);
+        recalculateAllianceOverlay();
     }
 }
 
@@ -148,6 +163,89 @@ function addAllianceToInfoOverlay() {
     $(compiledContent).insertAfter($(mapFloatElem).children('.owner')[0]);
 }
 
+function recalculateAllianceOverlay() {
+    let mapContainerElem = angular.element(".map-container");
+    let scope = mapContainerElem.scope();
+    let worldMap = scope.WorldMap;
+    if (!worldMap.displayOptions.alliances) return;
+
+    let $location = mapContainerElem.injector().get("$location");
+    console.log("Recalculating alliance overlay");
+    if ($location.search().pos) {
+        let roomSize;
+        let roomsPerSector;
+        switch (worldMap.zoom) {
+            case 1: { roomSize = 20;  roomsPerSector = 10; break; }
+            case 2: { roomSize = 50;  roomsPerSector =  4; break; }
+            case 3: { roomSize = 150; roomsPerSector =  1; break; }
+        }
+
+        let posStr = $location.search().pos;
+        if (!posStr) return;
+
+        for (var u = 0; u < worldMap.sectors.length; u++) {
+            let sector = worldMap.sectors[u];
+            if (!sector || !sector.pos) continue;
+
+            if (sector.rooms) {
+                // high zoom, render a bunch of rooms
+                let rooms = sector.rooms.split(",");
+                for (let index in rooms) {
+                    let roomName = rooms[index];
+                }
+            } else {
+                // we're at zoom level 3, only render one room
+                let left = sector.left;
+                let top = sector.top;
+                let roomDiv = $('<div class="alliance-logo" id="' + sector.name + '"></div>');
+                let roomStats = worldMap.roomStats[sector.name];
+                if (roomStats && roomStats.own) {
+                    let userName = worldMap.roomUsers[roomStats.own.user].username;
+                    let allianceKey = worldMap.userAlliance[userName];
+                    $(roomDiv).addClass('alliance-' + allianceKey);
+                }
+
+                $(roomDiv).removeClass("alliance-logo-1 alliance-logo-2 alliance-logo-3");
+                $(roomDiv).css('left', sector.left);
+                $(roomDiv).css('top', sector.top);
+                $(roomDiv).addClass("alliance-logo-" + worldMap.zoom);
+
+                $(mapContainerElem).append(roomDiv);
+            }
+        }
+    }
+}
+
+let pendingRedraws = 0;
+function addSectorAllianceOverlay() {
+    addStyle("\
+        .alliance-logo-1 { width: 4px; height: 4px; background-size: 4px 4px; }\
+        .alliance-logo-2 { width: 12.5px; height: 12.5px; background-size: 12.5px 12.5px; }\
+        .alliance-logo-3 { width: 50px; height: 50px; background-size: 50px 50px; }\
+        .alliance-logo { position: absolute; z-index: 2; opacity: 0.8 }\
+    ");
+
+    let mapContainerElem = angular.element(".map-container");
+    let scope = mapContainerElem.scope();
+
+    let deferRecalculation = function () {
+        if (pendingRedraws === 0) {
+            // remove alliance logos during redraws
+            $('.alliance-logo').remove();
+        }
+
+        pendingRedraws++;
+        setTimeout(() => {
+            pendingRedraws--;
+            if (pendingRedraws === 0) {
+                recalculateAllianceOverlay();
+            }
+        }, 100);
+    }
+    scope.$on("mapSectorsRecalced", deferRecalculation);
+    scope.$on("mapStatsUpdated", deferRecalculation);
+}
+
 // Entry point
 $(document).ready(() => {
     let app = angular.element(document.body);
@@ -162,6 +260,8 @@ $(document).ready(() => {
                 bindAllianceSetting();
                 addAllianceToggle();
                 addAllianceToInfoOverlay();
+
+                addSectorAllianceOverlay();
             });
         }
         tutorial._trigger(triggerName, unknownB);
