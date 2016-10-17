@@ -6,11 +6,10 @@
 // @version      0.2
 // @author       James Cook
 // @include      https://screeps.com/a/
-// @run-at       document-start
+// @run-at       document-ready
 // @downloadUrl  https://raw.githubusercontent.com/LeagueOfAutomatedNations/loan-browser-ext/master/dist/alliance-overlay.user.js
 // @grant        GM_xmlhttpRequest
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js
-// @require      https://screeps.com/a/vendor/angular/angular.js?bust=1476348151333%22
 // @connect      www.leagueofautomatednations.com
 // ==/UserScript==
 
