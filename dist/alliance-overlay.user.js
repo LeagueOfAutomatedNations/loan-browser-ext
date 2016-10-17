@@ -220,7 +220,6 @@ function recalculateAllianceOverlay() {
     }
 
     let $location = mapContainerElem.injector().get("$location");
-    console.log("Recalculating alliance overlay");
     if ($location.search().pos) {
         let roomPixels;
         let roomsPerSectorEdge;
@@ -239,7 +238,10 @@ function recalculateAllianceOverlay() {
             let sector = worldMap.sectors[u];
             if (!sector || !sector.pos) continue;
 
-            if (sector.rooms) {
+            if (worldMap.zoom === 3) {
+                // we're at zoom level 3, only render one room
+                drawRoomAllianceOverlay(sector.name, sector.left, sector.top);
+            } else if (sector.rooms) {
                 // high zoom, render a bunch of rooms
                 let rooms = sector.rooms.split(",");
                 for (let x = 0; x < roomsPerSectorEdge; x++) {
@@ -251,9 +253,6 @@ function recalculateAllianceOverlay() {
                             sector.top + y * roomPixels);
                     }
                 }
-            } else {
-                // we're at zoom level 3, only render one room
-                drawRoomAllianceOverlay(sector.name, sector.left, sector.top);
             }
         }
     }
@@ -272,10 +271,8 @@ function addSectorAllianceOverlay() {
     let scope = mapContainerElem.scope();
 
     let deferRecalculation = function () {
-        if (pendingRedraws === 0) {
-            // remove alliance logos during redraws
-            $('.alliance-logo').remove();
-        }
+        // remove alliance logos during redraws
+        $('.alliance-logo').remove();
 
         pendingRedraws++;
         setTimeout(() => {
