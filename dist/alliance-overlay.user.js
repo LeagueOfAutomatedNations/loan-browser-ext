@@ -286,6 +286,39 @@ function addSectorAllianceOverlay() {
     scope.$on("mapStatsUpdated", deferRecalculation);
 }
 
+function addAllianceColumnToLeaderboard() {
+    function deferredLeaderboardLoad() {
+        let leaderboardScope = angular.element('.leaderboard table').scope();
+        if (leaderboardScope) {
+            let rows = angular.element('.leaderboard table tr')
+            let leaderboard = leaderboardScope.$parent.LeaderboardList;
+
+            let $timeout = angular.element('body').injector().get('$timeout');
+            
+            ensureAllianceData(() => {
+                for (let i = 0; i < rows.length; i++) {
+                    if (i === 0) {
+                        let playerElem = $(rows[i]).children('th:nth-child(2)');
+                        $("<th class='alliance-leaderboard'>Alliance</th>").insertAfter(playerElem);
+                    } else {
+                        let playerElem = $(rows[i]).children('td:nth-child(2)');
+                        let userId = leaderboard.list[i - 1].user;
+                        let userName = leaderboard.users[userId].username;
+                        let allianceKey = userAlliance[userName];
+                        let allianceName = (allianceKey ? allianceData[allianceKey].name : "");
+                        
+                        $("<td class='alliance-leaderboard'>" + allianceName +" </td>").insertAfter(playerElem);
+                    }
+                }
+            });
+        } else {
+            setTimeout(deferredLeaderboardLoad, 100);
+        }
+    }
+
+    setTimeout(deferredLeaderboardLoad, 100);
+}
+
 // Entry point
 $(document).ready(() => {
     let app = angular.element(document.body);
@@ -306,4 +339,16 @@ $(document).ready(() => {
         }
         tutorial._trigger(triggerName, unknownB);
     };
+
+    let lastHash;
+    app.scope().$on("routeSegmentChange", function() {
+        if (window.location.hash && window.location.hash !== lastHash) {
+            var match = window.location.hash.match(/#!\/(.+?)\//);
+            if (match && match.length > 1 && match[1] === "rank") {
+                addAllianceColumnToLeaderboard();
+            }
+        }
+
+        lastHash = window.location.hash;
+    });
 });
