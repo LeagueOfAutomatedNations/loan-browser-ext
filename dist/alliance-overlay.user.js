@@ -3,7 +3,7 @@
 // ==UserScript==
 // @name         Screeps alliance overlay
 // @namespace    https://screeps.com/
-// @version      0.2.3
+// @version      0.2.4
 // @author       James Cook
 // @include      https://screeps.com/a/
 // @run-at       document-ready
@@ -341,11 +341,13 @@ $(document).ready(() => {
     };
 
     let lastHash;
+    let lastSearch;
     app.scope().$on("routeSegmentChange", function() {
         if (window.location.hash && window.location.hash !== lastHash) {
             var match = window.location.hash.match(/#!\/(.+?)\//);
             if (match && match.length > 1 && match[1] === "rank") {
-                addAllianceColumnToLeaderboard();
+                let search = app.injector().get("$location").search();
+                if (search.page) addAllianceColumnToLeaderboard();
             }
         }
 
