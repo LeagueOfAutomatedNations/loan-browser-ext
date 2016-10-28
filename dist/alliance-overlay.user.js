@@ -3,7 +3,7 @@
 // ==UserScript==
 // @name         Screeps alliance overlay
 // @namespace    https://screeps.com/
-// @version      0.2.4
+// @version      0.2.5
 // @author       James Cook
 // @include      https://screeps.com/a/
 // @run-at       document-ready
@@ -13,31 +13,8 @@
 // @connect      www.leagueofautomatednations.com
 // ==/UserScript==
 
-// Keep this in sync with http://www.leagueofautomatednations.com/static/js/ScreepsMap.js
-// Could just require it, but that's a lot of other baggage
-const DEFAULT_COLORS = [
-    '#FFFF00',
-    '#63f0e5',
-    '#00FF00',
-    '#C055DD',
-    '#FF66AA',
-    '#D00000',
-    '#FF8500',
-    '#0055DD',
-    '#54D579',
-    '#FF00FF',
-    '#FD2222',
-    '#FFA500',
-    '#CCFF88',
-    '#0088AA',
-    '#00EE88',
-    '#BB00BB',
-    '#FF33EE',
-    '#FF0000',
-    '#FFCC44',
-    '#DDA0DD',
-    '#54D579',
-];
+// Need to find some way to lock down these colors & permanently synchronize with LOAN. Store in DB?
+const DEFAULT_COLORS = ["#0a72ff", "#08acfd", "#ff1902", "#0ffffb", "#827c01", "#fe07a6", "#fcff04", "#c602fe", "#fd8583", "#f2aafe", "#ff9801", "#1eff06", "#07a202", "#ff0258", "#adfe58", "#c1528c", "#17fd88", "#b36627", "#e1bf1b", "#7c6dc3", "#ffbc6f", "#da452f", "#fe26e5", "#8858fe", "#fe72d8", "#fe4c8d", "#f86506", "#a57fff", "#c18908", "#0582eb", "#41e43e", "#b6d304", "#fff793", "#ff884f", "#beba49", "#ba67bf", "#fff95f", "#d84357", "#ff8fc9", "#8efd02", "#d451fe", "#75c208", "#c25a47", "#8fa3ff", "#e586fe", "#d726b5", "#c8fe0a", "#f51231", "#d26e04", "#ee6f92", "#ff68f7", "#ffd564", "#d73697", "#bb9a41", "#ffb63b", "#ba93f6", "#ffe310", "#e29140", "#6172e4", "#b19b03", "#fe725f", "#f701ff", "#ff4b55", "#ff4f2b", ]
 
 const loanBaseUrl = "http://www.leagueofautomatednations.com";
 
