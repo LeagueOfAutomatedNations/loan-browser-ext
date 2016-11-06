@@ -3,13 +3,14 @@
 // ==UserScript==
 // @name         Screeps alliance overlay
 // @namespace    https://screeps.com/
-// @version      0.2.5
+// @version      0.2.6
 // @author       James Cook
 // @include      https://screeps.com/a/
 // @run-at       document-ready
 // @downloadUrl  https://raw.githubusercontent.com/LeagueOfAutomatedNations/loan-browser-ext/master/dist/alliance-overlay.user.js
 // @grant        GM_xmlhttpRequest
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js
+// @require      https://raw.githubusercontent.com/Esryok/screeps-browser-ext/master/screeps-browser-core.js
 // @connect      www.leagueofautomatednations.com
 // ==/UserScript==
 
@@ -73,10 +74,7 @@ function ensureAllianceData(callback) {
 
 // Stuff references to the alliance data in the world map object. Not clear whether this is actually doing useful things.
 function exposeAllianceDataForAngular() {
-    let app = angular.element(document.body);
-    let $timeout = angular.element('body').injector().get('$timeout');
-
-    $timeout(()=>{
+    ScreepsAdapter.$timeout(()=>{
         let worldMapElem = angular.element($('.world-map'));
         let worldMap = worldMapElem.scope().WorldMap;
 
@@ -87,33 +85,16 @@ function exposeAllianceDataForAngular() {
     });
 
     for (let allianceKey in allianceData) {
-        addStyle(".alliance-" + allianceKey + " { background-color: " + getAllianceColor(allianceKey) + " }");
-        addStyle(".alliance-logo-3.alliance-" + allianceKey + " { background-image: url('" + getAllianceLogo(allianceKey) + "') }");
+        DomHelper.addStyle(
+            `.alliance-${allianceKey} { background-color: ${getAllianceColor(allianceKey)}
+             .alliance-logo-3.alliance-${allianceKey} { background-image: url('${getAllianceLogo(allianceKey)})}`
+        );
     }
-}
-
-// inject a new CSS style
-function addStyle(css) {
-    let head = document.head;
-    if (!head) return;
-
-    let style = document.createElement('style');
-    style.type = 'text/css';
-    style.innerHTML = css;
-
-    head.appendChild(style);
-}
-
-function generateCompiledElement(parent, content) {
-    let $scope = parent.scope();
-    let $compile = parent.injector().get("$compile");
-
-    return $compile(content)($scope);
 }
 
 // Bind the WorldMap alliance display option to the localStorage value
 function bindAllianceSetting() {
-    let alliancesEnabled = localStorage.getItem("alliancesEnabled") === "true";
+    let alliancesEnabled = localStorage.getItem("alliancesEnabled") !== "false";
     let worldMapElem = angular.element($('.world-map'));
     let worldMap = worldMapElem.scope().WorldMap;
     worldMap.displayOptions.alliances = alliancesEnabled;
@@ -156,14 +137,14 @@ function addAllianceToggle() {
                 <span>&#9733;</span>\
         </md:button>";
 
-    addStyle("\
+    DomHelper.addStyle("\
         section.world-map .map-container .btn-units.alliance-toggle { right: 50px; font-size: 16px; padding: 4px; } \
         section.world-map .map-container .btn-units.alliance-toggle.solitary { right: 10px; } \
         section.world-map .map-container .layer-select { right: 90px; } \
     ");
 
     let mapContainerElem = angular.element($('.map-container'));
-    let compiledContent = generateCompiledElement(mapContainerElem, content);
+    let compiledContent = DomHelper.generateCompiledElement(mapContainerElem, content);
     $(compiledContent).appendTo(mapContainerElem);
 }
 
@@ -178,7 +159,7 @@ function addAllianceToInfoOverlay() {
         </div>";
 
     let mapFloatElem = angular.element($('.map-float-info'));
-    let compiledContent = generateCompiledElement(mapFloatElem, content);
+    let compiledContent = DomHelper.generateCompiledElement(mapFloatElem, content);
     $(compiledContent).insertAfter($(mapFloatElem).children('.owner')[0]);
 }
 
@@ -248,7 +229,7 @@ function recalculateAllianceOverlay() {
 
 let pendingRedraws = 0;
 function addSectorAllianceOverlay() {
-    addStyle("\
+    DomHelper.addStyle("\
         .alliance-logo { position: absolute; z-index: 2; opacity: 0.4 }\
         .alliance-logo-1 { width: 20px; height: 20px; }\
         .alliance-logo-2 { width: 50px; height: 50px; }\
@@ -280,9 +261,6 @@ function addAllianceColumnToLeaderboard() {
         if (leaderboardScope) {
             let rows = angular.element('.leaderboard table tr')
             let leaderboard = leaderboardScope.$parent.LeaderboardList;
-
-            let $timeout = angular.element('body').injector().get('$timeout');
-            
             ensureAllianceData(() => {
                 for (let i = 0; i < rows.length; i++) {
                     if (i === 0) {
@@ -309,15 +287,9 @@ function addAllianceColumnToLeaderboard() {
 
 // Entry point
 $(document).ready(() => {
-    let app = angular.element(document.body);
-    let tutorial = app.injector().get("Tutorial");
-    let $timeout = angular.element('body').injector().get('$timeout');
-
-    // intercept viewer state changes
-    tutorial._trigger = tutorial.trigger;
-    tutorial.trigger = function(triggerName, unknownB) {
-        if (triggerName === "worldMapEntered") {
-            $timeout(()=>{
+    ScreepsAdapter.onViewChange(function(event, view) {
+        if (view === "worldMapEntered") {
+            ScreepsAdapter.$timeout(()=> {
                 bindAllianceSetting();
                 addAllianceToggle();
                 addAllianceToInfoOverlay();
@@ -325,20 +297,13 @@ $(document).ready(() => {
                 addSectorAllianceOverlay();
             });
         }
-        tutorial._trigger(triggerName, unknownB);
-    };
+    });
 
-    let lastHash;
-    let lastSearch;
-    app.scope().$on("routeSegmentChange", function() {
-        if (window.location.hash && window.location.hash !== lastHash) {
-            var match = window.location.hash.match(/#!\/(.+?)\//);
-            if (match && match.length > 1 && match[1] === "rank") {
-                let search = app.injector().get("$location").search();
-                if (search.page) addAllianceColumnToLeaderboard();
-            }
+    ScreepsAdapter.onHashChange(function(event, hash) {
+        var match = hash.match(/#!\/(.+?)\//);
+        if (match && match.length > 1 && match[1] === "rank") {
+            let search = app.injector().get("$location").search();
+            if (search.page) addAllianceColumnToLeaderboard();
         }
-
-        lastHash = window.location.hash;
     });
 });
