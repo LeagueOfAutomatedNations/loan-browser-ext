@@ -3,7 +3,7 @@
 // ==UserScript==
 // @name         Screeps alliance overlay
 // @namespace    https://screeps.com/
-// @version      0.2.7
+// @version      0.2.8
 // @author       James Cook
 // @include      https://screeps.com/a/
 // @run-at       document-ready
@@ -309,7 +309,7 @@ function addAllianceColumnToLeaderboard() {
 
 // Entry point
 $(document).ready(() => {
-    ScreepsAdapter.onViewChange((event, view) => {
+    ScreepsAdapter.onViewChange((view) => {
         if (view === "worldMapEntered") {
             ScreepsAdapter.$timeout(()=> {
                 bindAllianceSetting();
@@ -321,7 +321,7 @@ $(document).ready(() => {
         }
     });
 
-    ScreepsAdapter.onHashChange(function(event, hash) {
+    ScreepsAdapter.onHashChange((hash) => {
         var match = hash.match(/#!\/(.+?)\//);
         if (match && match.length > 1 && match[1] === "rank") {
             let app = angular.element(document.body);
