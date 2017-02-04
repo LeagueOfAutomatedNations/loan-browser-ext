@@ -10,23 +10,10 @@
 // @downloadUrl  https://raw.githubusercontent.com/LeagueOfAutomatedNations/loan-browser-ext/master/dist/alliance-overlay.user.js
 // @grant        GM_xmlhttpRequest
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js
+// @require      http://www.leagueofautomatednations.com/static/js/vendor/randomColor.js
 // @require      https://github.com/Esryok/screeps-browser-ext/raw/master/screeps-browser-core.js
 // @connect      www.leagueofautomatednations.com
 // ==/UserScript==
-
-// Need to find some way to lock down these colors & permanently synchronize with LOAN. Store in DB?
-/* Palette configuration (http://jnnnnn.github.io/category-colors-constrained.html):
-    function constraint(lab) {
-        var noviceHcl = d3.hcl("#385A3A");
-        var hcl = d3.hcl(lab);
-
-        var avoidNovice = Math.abs(hcl.h - noviceHcl.h) > 40 || Math.abs(hcl.c - noviceHcl.c) > 60;//lab_dist(lab, d3.lab("#385A3A")) > 60;
-        var colorful = hcl.c > 50;
-        var bright = hcl.l > 50;
-        return avoidNovice && colorful && bright;
-    }
-*/
-const DEFAULT_COLORS = ["#0a72ff", "#08acfd", "#ff1902", "#0ffffb", "#827c01", "#fe07a6", "#fcff04", "#c602fe", "#fd8583", "#f2aafe", "#ff9801", "#1eff06", "#07a202", "#ff0258", "#adfe58", "#c1528c", "#17fd88", "#b36627", "#e1bf1b", "#7c6dc3", "#ffbc6f", "#da452f", "#fe26e5", "#8858fe", "#fe72d8", "#fe4c8d", "#f86506", "#a57fff", "#c18908", "#0582eb", "#41e43e", "#b6d304", "#fff793", "#ff884f", "#beba49", "#ba67bf", "#fff95f", "#d84357", "#ff8fc9", "#8efd02", "#d451fe", "#75c208", "#c25a47", "#8fa3ff", "#e586fe", "#d726b5", "#c8fe0a", "#f51231", "#d26e04", "#ee6f92", "#ff68f7", "#ffd564", "#d73697", "#bb9a41", "#ffb63b", "#ba93f6", "#ffe310", "#e29140", "#6172e4", "#b19b03", "#fe725f", "#f701ff", "#ff4b55", "#ff4f2b", ]
 
 const loanBaseUrl = "http://www.leagueofautomatednations.com";
 
@@ -39,9 +26,22 @@ function getAllianceLogo(allianceKey) {
     }
 }
 
+let colorMap = {};
 function getAllianceColor(allianceKey) {
-    let keys = Object.keys(allianceData);
-    return DEFAULT_COLORS[keys.indexOf(allianceKey)];
+    if (!colorMap[allianceKey]) {
+        let seed = allianceData[allianceKey].name;
+        let [hue,sat,lum] = randomColor({
+            hue: "random",
+            luminosity: "light",
+            seed,
+            format: "hslArray"
+        });
+
+        // the canvas opacity means the light color set has bad costrast: reduce luminosity to improve
+        colorMap[allianceKey] = `hsl(${hue},${sat}%,${lum/2}%)`;
+    }
+
+    return colorMap[allianceKey];
 }
 
 // query for alliance data from the LOAN site
