@@ -3,7 +3,7 @@
 // ==UserScript==
 // @name         Screeps alliance overlay
 // @namespace    https://screeps.com/
-// @version      0.2.8
+// @version      0.2.9
 // @author       James Cook
 // @include      https://screeps.com/a/
 // @run-at       document-ready
